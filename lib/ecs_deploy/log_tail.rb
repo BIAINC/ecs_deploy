@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
-require 'aws-cloudwatch'
+require 'aws-sdk-cloudwatchlogs'
+
 module EcsDeploy
   class LogTail
     attr_reader :running, :task_id
