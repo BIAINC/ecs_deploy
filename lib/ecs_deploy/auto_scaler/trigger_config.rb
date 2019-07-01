@@ -1,7 +1,8 @@
-require "aws-sdk-cloudwatch"
-require "ecs_deploy"
-require "ecs_deploy/auto_scaler"
-require "ecs_deploy/auto_scaler/config_base"
+# frozen_string_literal: true
+
+require 'ecs_deploy'
+require 'ecs_deploy/auto_scaler'
+require 'ecs_deploy/auto_scaler/config_base'
 
 module EcsDeploy
   module AutoScaler
@@ -25,10 +26,11 @@ module EcsDeploy
         res = client.describe_alarms(alarm_names: [alarm_name])
 
         raise "Alarm \"#{alarm_name}\" is not found" if res.metric_alarms.empty?
+
         res.metric_alarms[0].tap do |alarm|
           AutoScaler.logger.debug("#{alarm.alarm_name} state is #{alarm.state_value}")
         end
-      rescue => e
+      rescue StandardError => e
         AutoScaler.error_logger.error(e)
       end
     end

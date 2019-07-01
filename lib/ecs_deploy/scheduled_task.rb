@@ -1,4 +1,5 @@
-require 'aws-sdk-cloudwatchevents'
+# frozen_string_literal: true
+
 require 'timeout'
 
 module EcsDeploy
@@ -23,7 +24,7 @@ module EcsDeploy
       @revision = revision
       @role_arn = role_arn
       @network_configuration = network_configuration
-      @launch_type = launch_type || "EC2"
+      @launch_type = launch_type || 'EC2'
       @platform_version = platform_version
       @group = group
       region ||= EcsDeploy.config.default_region
@@ -43,13 +44,11 @@ module EcsDeploy
 
     def cluster_arn
       cl = @client.describe_clusters(clusters: [@cluster]).clusters[0]
-      if cl
-        cl.cluster_arn
-      end
+      cl&.cluster_arn
     end
 
     def task_definition_arn
-      suffix = @revision ? ":#{@revision}" : ""
+      suffix = @revision ? ":#{@revision}" : ''
       name = "#{@task_definition_name}#{suffix}"
       @client.describe_task_definition(task_definition: name).task_definition.task_definition_arn
     end
@@ -58,8 +57,8 @@ module EcsDeploy
       res = @cloud_watch_events.put_rule(
         name: @rule_name,
         schedule_expression: @schedule_expression,
-        state: @enabled ? "ENABLED" : "DISABLED",
-        description: @description,
+        state: @enabled ? 'ENABLED' : 'DISABLED',
+        description: @description
       )
       EcsDeploy.logger.info "create cloudwatch event rule [#{res.rule_arn}] [#{@region}] [#{Paint['OK', :green]}]"
     end
@@ -75,8 +74,8 @@ module EcsDeploy
           network_configuration: @network_configuration,
           launch_type: @launch_type,
           platform_version: @platform_version,
-          group: @group,
-        },
+          group: @group
+        }
       }
       target[:ecs_parameters].compact!
 

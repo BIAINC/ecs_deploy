@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require 'timeout'
 
 module EcsDeploy
@@ -10,7 +12,7 @@ module EcsDeploy
     def initialize(
       cluster:, service_name:, task_definition_name: nil, revision: nil,
       load_balancers: nil,
-      desired_count: nil, deployment_configuration: {maximum_percent: 200, minimum_healthy_percent: 100},
+      desired_count: nil, deployment_configuration: { maximum_percent: 200, minimum_healthy_percent: 100 },
       launch_type: nil,
       placement_constraints: [],
       placement_strategy: [],
@@ -54,29 +56,29 @@ module EcsDeploy
         task_definition: task_definition_name_with_revision,
         deployment_configuration: @deployment_configuration,
         network_configuration: @network_configuration,
-        health_check_grace_period_seconds: @health_check_grace_period_seconds,
+        health_check_grace_period_seconds: @health_check_grace_period_seconds
       }
-      if res.services.select{ |s| s.status == 'ACTIVE' }.empty?
+      if res.services.select { |s| s.status == 'ACTIVE' }.empty?
         return if @delete
 
-        service_options.merge!({
+        service_options.merge!(
           service_name: @service_name,
           desired_count: @desired_count.to_i,
           launch_type: @launch_type,
           placement_constraints: @placement_constraints,
-          placement_strategy: @placement_strategy,
-        })
+          placement_strategy: @placement_strategy
+        )
 
         if @load_balancers && EcsDeploy.config.ecs_service_role
-          service_options.merge!({
-            role: EcsDeploy.config.ecs_service_role,
-          })
+          service_options.merge!(
+            role: EcsDeploy.config.ecs_service_role
+          )
         end
 
         if @load_balancers
-          service_options.merge!({
-            load_balancers: @load_balancers,
-          })
+          service_options.merge!(
+            load_balancers: @load_balancers
+          )
         end
 
         if @scheduling_strategy == 'DAEMON'
@@ -88,8 +90,8 @@ module EcsDeploy
       else
         return delete_service if @delete
 
-        service_options.merge!({service: @service_name})
-        service_options.merge!({desired_count: @desired_count}) if @desired_count
+        service_options.merge!(service: @service_name)
+        service_options.merge!(desired_count: @desired_count) if @desired_count
         @response = @client.update_service(service_options)
         EcsDeploy.logger.info "update service [#{@service_name}] [#{@region}] [#{Paint['OK', :green]}]"
       end
@@ -128,7 +130,7 @@ module EcsDeploy
             w.max_attempts = EcsDeploy.config.ecs_wait_until_services_stable_max_attempts if EcsDeploy.config.ecs_wait_until_services_stable_max_attempts
 
             w.before_attempt do
-              EcsDeploy.logger.info "wait service stable [#{chunked_service_names.join(", ")}]"
+              EcsDeploy.logger.info "wait service stable [#{chunked_service_names.join(', ')}]"
             end
           end
         end
@@ -138,7 +140,7 @@ module EcsDeploy
     private
 
     def task_definition_name_with_revision
-      suffix = @revision ? ":#{@revision}" : ""
+      suffix = @revision ? ":#{@revision}" : ''
       "#{@task_definition_name}#{suffix}"
     end
   end

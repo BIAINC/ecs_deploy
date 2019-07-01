@@ -1,8 +1,10 @@
-require "aws-sdk-autoscaling"
-require "aws-sdk-ec2"
-require "aws-sdk-ecs"
-require "ecs_deploy"
-require "ecs_deploy/auto_scaler/config_base"
+# frozen_string_literal: true
+
+require 'aws-sdk-autoscaling'
+require 'aws-sdk-ec2'
+require 'aws-sdk-ecs'
+require 'ecs_deploy'
+require 'ecs_deploy/auto_scaler/config_base'
 
 module EcsDeploy
   module AutoScaler
@@ -14,9 +16,9 @@ module EcsDeploy
 
         desired_capacity = (required_capacity + buffer.to_f).ceil
 
-        current_asg = client.describe_auto_scaling_groups({
-          auto_scaling_group_names: [name],
-        }).auto_scaling_groups[0]
+        current_asg = client.describe_auto_scaling_groups(
+          auto_scaling_group_names: [name]
+        ).auto_scaling_groups[0]
 
         if current_asg.desired_capacity > desired_capacity
           diff = current_asg.desired_capacity - desired_capacity
@@ -31,6 +33,7 @@ module EcsDeploy
           deregistered_instance_ids = []
           deregisterable_instances.each do |i|
             break if deregistered_instance_ids.size >= diff
+
             begin
               service_config.deregister_container_instance(i.container_instance_arn)
               deregistered_instance_ids << i.ec2_instance_id
@@ -48,11 +51,11 @@ module EcsDeploy
             auto_scaling_group_name: name,
             min_size: 0,
             max_size: [current_asg.max_size, desired_capacity].max,
-            desired_capacity: desired_capacity,
+            desired_capacity: desired_capacity
           )
           @logger.info "Update auto scaling group \"#{name}\": desired_capacity -> #{desired_capacity}"
         end
-      rescue => e
+      rescue StandardError => e
         AutoScaler.error_logger.error(e)
       end
 
@@ -75,7 +78,7 @@ module EcsDeploy
         ec2_client.terminate_instances(instance_ids: instance_ids)
 
         @logger.info "Terminated instances: #{instance_ids.inspect}"
-      rescue => e
+      rescue StandardError => e
         AutoScaler.error_logger.error(e)
       end
 
@@ -90,7 +93,7 @@ module EcsDeploy
         end
 
         detach_and_terminate_instances(targets.map(&:instance_id))
-      rescue => e
+      rescue StandardError => e
         AutoScaler.error_logger.error(e)
       end
 
@@ -114,9 +117,9 @@ module EcsDeploy
 
       def instances(reload: false)
         if reload || @instances.nil?
-          resp = client.describe_auto_scaling_groups({
-            auto_scaling_group_names: [name],
-          })
+          resp = client.describe_auto_scaling_groups(
+            auto_scaling_group_names: [name]
+          )
           @instances = resp.auto_scaling_groups[0].instances
         else
           @instances

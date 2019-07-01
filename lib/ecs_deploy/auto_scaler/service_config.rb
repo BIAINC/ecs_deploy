@@ -1,11 +1,13 @@
-require "aws-sdk-ecs"
-require "ecs_deploy"
-require "ecs_deploy/auto_scaler/config_base"
-require "ecs_deploy/auto_scaler/trigger_config"
+# frozen_string_literal: true
+
+require 'aws-sdk-ecs'
+require 'ecs_deploy'
+require 'ecs_deploy/auto_scaler/config_base'
+require 'ecs_deploy/auto_scaler/trigger_config'
 
 module EcsDeploy
   module AutoScaler
-    SERVICE_CONFIG_ATTRIBUTES = %i(name cluster region auto_scaling_group_name spot_fleet_request_id step max_task_count min_task_count idle_time scheduled_min_task_count cooldown_time_for_reach_max upscale_triggers downscale_triggers desired_count required_capacity)
+    SERVICE_CONFIG_ATTRIBUTES = %i[name cluster region auto_scaling_group_name spot_fleet_request_id step max_task_count min_task_count idle_time scheduled_min_task_count cooldown_time_for_reach_max upscale_triggers downscale_triggers desired_count required_capacity].freeze
     ServiceConfig = Struct.new(*SERVICE_CONFIG_ATTRIBUTES) do
       include ConfigBase
 
@@ -16,15 +18,16 @@ module EcsDeploy
         if auto_scaling_group_name && spot_fleet_request_id
           raise ArgumentError, "You can specify only one of 'auto_scaling_group_name' or 'spot_fleet_request_name'"
         end
+
         self.idle_time ||= 60
         self.max_task_count = Array(max_task_count)
         self.upscale_triggers = upscale_triggers.to_a.map do |t|
-          TriggerConfig.new({"region" => region, "step" => step}.merge(t), logger)
+          TriggerConfig.new({ 'region' => region, 'step' => step }.merge(t), logger)
         end
         self.downscale_triggers = downscale_triggers.to_a.map do |t|
-          TriggerConfig.new({"region" => region, "step" => step}.merge(t), logger)
+          TriggerConfig.new({ 'region' => region, 'step' => step }.merge(t), logger)
         end
-        self.max_task_count.sort!
+        max_task_count.sort!
         self.desired_count = fetch_service.desired_count
         self.required_capacity ||= 1
         @reach_max_at = nil
@@ -65,9 +68,7 @@ module EcsDeploy
           difference = max_task_count.max - desired_count
         end
 
-        if difference != 0
-          update_service(difference)
-        end
+        update_service(difference) if difference != 0
       end
 
       def fetch_container_instances_in_cluster
@@ -123,23 +124,25 @@ module EcsDeploy
       def current_min_task_count
         return min_task_count if scheduled_min_task_count.nil? || scheduled_min_task_count.empty?
 
-        scheduled_min_task_count.find(-> { {"count" => min_task_count} }) { |s|
-          from = Time.parse(s["from"])
-          to = Time.parse(s["to"])
+        scheduled_min_task_count.find(-> { { 'count' => min_task_count } }) do |s|
+          from = Time.parse(s['from'])
+          to = Time.parse(s['to'])
           (from..to).cover?(Time.now)
-        }["count"]
+        end['count']
       end
 
       def overheat?
         return false unless @reach_max_at
+
         (Process.clock_gettime(Process::CLOCK_MONOTONIC, :second) - @reach_max_at) > cooldown_time_for_reach_max
       end
 
       def fetch_service
         res = client.describe_services(cluster: cluster, services: [name])
         raise "Service \"#{name}\" is not found" if res.services.empty?
+
         res.services[0]
-      rescue => e
+      rescue StandardError => e
         AutoScaler.error_logger.error(e)
       end
 
@@ -176,17 +179,19 @@ module EcsDeploy
         cl.update_service(
           cluster: cluster,
           service: name,
-          desired_count: next_desired_count,
+          desired_count: next_desired_count
         )
-        cl.wait_until(:services_stable, cluster: cluster, services: [name]) do |w|
-          w.before_wait do
-            @logger.debug "wait service stable [#{name}]"
+        if difference < 0
+          cl.wait_until(:services_stable, cluster: cluster, services: [name]) do |w|
+            w.before_wait do
+              @logger.debug "wait service stable [#{name}]"
+            end
           end
-        end if difference < 0
+        end
         @last_updated_at = Process.clock_gettime(Process::CLOCK_MONOTONIC, :second)
         self.desired_count = next_desired_count
         @logger.info "Update service \"#{name}\": desired_count -> #{next_desired_count}"
-      rescue => e
+      rescue StandardError => e
         AutoScaler.error_logger.error(e)
       end
 

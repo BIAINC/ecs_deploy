@@ -1,17 +1,19 @@
+# frozen_string_literal: true
+
 module EcsDeploy
   class TaskDefinition
     def self.deregister(arn, region: nil)
       region ||= EcsDeploy.config.default_region
       client = region ? Aws::ECS::Client.new(region: region) : Aws::ECS::Client.new
-      client.deregister_task_definition({
-        task_definition: arn,
-      })
+      client.deregister_task_definition(
+        task_definition: arn
+      )
       EcsDeploy.logger.info "deregister task definition [#{arn}] [#{client.config.region}] [#{Paint['OK', :green]}]"
     end
 
     def initialize(
       task_definition_name:, region: nil,
-      network_mode: "bridge", volumes: [], container_definitions: [], placement_constraints: [],
+      network_mode: 'bridge', volumes: [], container_definitions: [], placement_constraints: [],
       task_role_arn: nil,
       execution_role_arn: nil,
       requires_compatibilities: nil,
@@ -45,15 +47,15 @@ module EcsDeploy
     def recent_task_definition_arns
       resp = @client.list_task_definitions(
         family_prefix: @task_definition_name,
-        sort: "DESC"
+        sort: 'DESC'
       )
       resp.task_definition_arns
-    rescue
+    rescue StandardError
       []
     end
 
     def register
-      res = @client.register_task_definition({
+      res = @client.register_task_definition(
         family: @task_definition_name,
         network_mode: @network_mode,
         container_definitions: @container_definitions,
@@ -62,8 +64,8 @@ module EcsDeploy
         task_role_arn: @task_role_arn,
         execution_role_arn: @execution_role_arn,
         requires_compatibilities: @requires_compatibilities,
-        cpu: @cpu, memory: @memory,
-      })
+        cpu: @cpu, memory: @memory
+      )
       EcsDeploy.logger.info "register task definition [#{@task_definition_name}] [#{@region}] [#{Paint['OK', :green]}]"
       res.task_definition
     end

@@ -1,7 +1,9 @@
-require "ecs_deploy/version"
-require "ecs_deploy/configuration"
+# frozen_string_literal: true
 
-require 'aws-sdk-ecs'
+require 'ecs_deploy/version'
+require 'ecs_deploy/configuration'
+
+require 'aws-sdk'
 require 'logger'
 require 'terminal-table'
 require 'paint'
@@ -17,7 +19,7 @@ module EcsDeploy
     @config ||= Configuration.new
   end
 
-  def self.configure(&block)
+  def self.configure
     if block_given?
       yield config
       @logger = nil
@@ -25,6 +27,8 @@ module EcsDeploy
   end
 end
 
-require "ecs_deploy/task_definition"
-require "ecs_deploy/service"
-require "ecs_deploy/scheduled_task"
+require 'ecs_deploy/task_definition'
+require 'ecs_deploy/service'
+require 'ecs_deploy/scheduled_task'
+require 'ecs_deploy/execute'
+require 'ecs_deploy/log_tail'

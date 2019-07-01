@@ -1,6 +1,7 @@
 #!/usr/bin/env ruby
+# frozen_string_literal: true
 
-require "ecs_deploy"
-require "ecs_deploy/auto_scaler"
+require 'ecs_deploy'
+require 'ecs_deploy/auto_scaler'
 
 EcsDeploy::AutoScaler.run(*ARGV)

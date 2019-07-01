@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require 'ecs_deploy'
 
 namespace :ecs do
@@ -11,12 +13,18 @@ namespace :ecs do
       c.ecs_wait_until_services_stable_delay = fetch(:ecs_wait_until_services_stable_delay) if fetch(:ecs_wait_until_services_stable_delay)
     end
 
-    if ENV["TARGET_CLUSTER"]
-      set :target_cluster, ENV["TARGET_CLUSTER"].split(",").map(&:strip)
+    if ENV['TARGET_CLUSTER']
+      set :target_cluster, ENV['TARGET_CLUSTER'].split(',').map(&:strip)
     end
-    if ENV["TARGET_TASK_DEFINITION"]
-      set :target_task_definition, ENV["TARGET_TASK_DEFINITION"].split(",").map(&:strip)
+    if ENV['TARGET_TASK_DEFINITION']
+      set :target_task_definition, ENV['TARGET_TASK_DEFINITION'].split(',').map(&:strip)
     end
+  end
+
+  task :run_task, [:name] => [:configure] do |_t, args|
+    task_name = args.fetch(:name).to_sym
+    task_definition = fetch(:ecs_runners).fetch(task_name)
+    EcsDeploy::Execute.new(task: task_definition, region: fetch(:ecs_region)).run
   end
 
   task register_task_definition: [:configure] do
@@ -38,7 +46,7 @@ namespace :ecs do
             placement_constraints: t[:placement_constraints],
             requires_compatibilities: t[:requires_compatibilities],
             cpu: t[:cpu],
-            memory: t[:memory],
+            memory: t[:memory]
           )
           result = task_definition.register
           ecs_registered_tasks[region][t[:name]] = result
@@ -49,7 +57,7 @@ namespace :ecs do
     end
   end
 
-  task deploy_scheduled_task: [:configure, :register_task_definition] do
+  task deploy_scheduled_task: %i[configure register_task_definition] do
     if fetch(:ecs_scheduled_tasks)
       regions = Array(fetch(:ecs_region))
       regions = [nil] if regions.empty?
@@ -71,7 +79,7 @@ namespace :ecs do
             revision: t[:revision],
             task_count: t[:task_count],
             role_arn: t[:role_arn],
-            container_overrides: t[:container_overrides],
+            container_overrides: t[:container_overrides]
           )
           scheduled_task.deploy
         end
@@ -79,16 +87,16 @@ namespace :ecs do
     end
   end
 
-  task deploy: [:configure, :register_task_definition] do
+  task deploy: %i[configure register_task_definition] do
     if fetch(:ecs_services)
       regions = Array(fetch(:ecs_region))
       regions = [nil] if regions.empty?
       regions.each do |r|
         services = fetch(:ecs_services).map do |service|
-          if fetch(:target_cluster) && fetch(:target_cluster).size > 0
+          if fetch(:target_cluster) && !fetch(:target_cluster).empty?
             next unless fetch(:target_cluster).include?(service[:cluster])
           end
-          if fetch(:target_task_definition) && fetch(:target_task_definition).size > 0
+          if fetch(:target_task_definition) && !fetch(:target_task_definition).empty?
             next unless fetch(:target_task_definition).include?(service[:task_definition_name])
           end
 
@@ -102,7 +110,7 @@ namespace :ecs do
             launch_type: service[:launch_type],
             network_configuration: service[:network_configuration],
             health_check_grace_period_seconds: service[:health_check_grace_period_seconds],
-            delete: service[:delete],
+            delete: service[:delete]
           }
           service_options[:deployment_configuration] = service[:deployment_configuration] if service[:deployment_configuration]
           service_options[:placement_constraints] = service[:placement_constraints] if service[:placement_constraints]
@@ -125,24 +133,24 @@ namespace :ecs do
       rollback_routes = {}
       regions.each do |r|
         services = fetch(:ecs_services).map do |service|
-          if fetch(:target_cluster) && fetch(:target_cluster).size > 0
+          if fetch(:target_cluster) && !fetch(:target_cluster).empty?
             next unless fetch(:target_cluster).include?(service[:cluster])
           end
-          if fetch(:target_task_definition) && fetch(:target_task_definition).size > 0
+          if fetch(:target_task_definition) && !fetch(:target_task_definition).empty?
             next unless fetch(:target_task_definition).include?(service[:task_definition_name])
           end
 
           task_definition_arns = EcsDeploy::TaskDefinition.new(
             region: r,
-            task_definition_name: service[:task_definition_name] || service[:name],
+            task_definition_name: service[:task_definition_name] || service[:name]
           ).recent_task_definition_arns
 
-          rollback_step = (ENV["STEP"] || 1).to_i
+          rollback_step = (ENV['STEP'] || 1).to_i
 
           current_task_definition_arn = EcsDeploy::Service.new(
             region: r,
             cluster: service[:cluster] || fetch(:ecs_default_cluster),
-            service_name: service[:name],
+            service_name: service[:name]
           ).current_task_definition_arn
 
           unless (rollback_arn = rollback_routes[current_task_definition_arn])
@@ -157,7 +165,7 @@ namespace :ecs do
 
           EcsDeploy.logger.info "#{current_task_definition_arn} -> #{rollback_arn}"
 
-          raise "Past task_definition_arns is nothing" unless rollback_arn
+          raise 'Past task_definition_arns is nothing' unless rollback_arn
 
           service_options = {
             region: r,
@@ -168,7 +176,7 @@ namespace :ecs do
             desired_count: service[:desired_count],
             launch_type: service[:launch_type],
             network_configuration: service[:network_configuration],
-            health_check_grace_period_seconds: service[:health_check_grace_period_seconds],
+            health_check_grace_period_seconds: service[:health_check_grace_period_seconds]
           }
           service_options[:deployment_configuration] = service[:deployment_configuration] if service[:deployment_configuration]
           service_options[:placement_constraints] = service[:placement_constraints] if service[:placement_constraints]

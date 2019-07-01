@@ -1,10 +1,12 @@
-require "json"
-require "timeout"
+# frozen_string_literal: true
 
-require "aws-sdk-ec2"
-require "aws-sdk-ecs"
-require "ecs_deploy"
-require "ecs_deploy/auto_scaler/config_base"
+require 'json'
+require 'timeout'
+
+require 'aws-sdk-ec2'
+require 'aws-sdk-ecs'
+require 'ecs_deploy'
+require 'ecs_deploy/auto_scaler/config_base'
 
 module EcsDeploy
   module AutoScaler
@@ -31,7 +33,7 @@ module EcsDeploy
           wait_for_capacity_decrease(service_config.cluster, request_config.target_capacity - desired_capacity)
         end
         @logger.info "Update spot fleet request \"#{id}\": desired_capacity -> #{desired_capacity}"
-      rescue => e
+      rescue StandardError => e
         AutoScaler.error_logger.error(e)
       end
 
@@ -44,7 +46,7 @@ module EcsDeploy
 
         running_instances = ec2_client.describe_instances(
           instance_ids: orphans,
-          filters: [{ name: "instance-state-name", values: ["running"] }],
+          filters: [{ name: 'instance-state-name', values: ['running'] }]
         ).reservations.flat_map(&:instances)
         # instances which have just launched might not be registered to the cluster yet.
         instance_ids = running_instances.select { |i| (Time.now - i.launch_time) > 600 }.map(&:instance_id)
@@ -56,7 +58,7 @@ module EcsDeploy
         ec2_client.terminate_instances(instance_ids: instance_ids)
 
         @logger.info "Terminated instances: #{instance_ids.inspect}"
-      rescue => e
+      rescue StandardError => e
         AutoScaler.error_logger.error(e)
       end
 
@@ -67,7 +69,7 @@ module EcsDeploy
           access_key_id: EcsDeploy.config.access_key_id,
           secret_access_key: EcsDeploy.config.secret_access_key,
           region: region,
-          logger: logger,
+          logger: logger
         )
       end
 
@@ -76,7 +78,7 @@ module EcsDeploy
           access_key_id: EcsDeploy.config.access_key_id,
           secret_access_key: EcsDeploy.config.secret_access_key,
           region: region,
-          logger: logger,
+          logger: logger
         )
       end
 
@@ -86,6 +88,7 @@ module EcsDeploy
         Timeout.timeout(180) do
           loop do
             break if calculate_active_instance_capacity(cluster) <= initial_capacity - capacity
+
             sleep 5
           end
         end
@@ -95,12 +98,13 @@ module EcsDeploy
 
       def calculate_active_instance_capacity(cluster)
         cl = ecs_client
-        total_cpu = cl.list_container_instances(cluster: cluster, status: "ACTIVE").sum do |resp|
+        total_cpu = cl.list_container_instances(cluster: cluster, status: 'ACTIVE').sum do |resp|
           next 0 if resp.container_instance_arns.empty?
+
           ecs_client.describe_container_instances(
             cluster: cluster,
-            container_instances: resp.container_instance_arns,
-          ).container_instances.sum { |ci| ci.registered_resources.find { |r| r.name == "CPU" }.integer_value }
+            container_instances: resp.container_instance_arns
+          ).container_instances.sum { |ci| ci.registered_resources.find { |r| r.name == 'CPU' }.integer_value }
         end
 
         total_cpu / 1024
