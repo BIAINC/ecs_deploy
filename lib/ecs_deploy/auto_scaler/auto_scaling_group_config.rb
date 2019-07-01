@@ -1,9 +1,9 @@
 # frozen_string_literal: true
 
-require 'aws-sdk-autoscaling'
-require 'aws-sdk-ec2'
-require 'aws-sdk-ecs'
-require 'ecs_deploy'
+require "aws-sdk-autoscaling"
+require "aws-sdk-ec2"
+require "aws-sdk-ecs"
+require "ecs_deploy"
 require 'ecs_deploy/auto_scaler/config_base'
 
 module EcsDeploy
